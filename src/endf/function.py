@@ -279,8 +279,9 @@ class Tabulated1D:
             if self._x[-1] < b:
                 b = self._x[-1]
         
-        # Check for this special case
-        if a == b:
+        # Check for an empty integration range, which can occur when the
+        # requested range lies entirely outside the tabulated domain.
+        if a >= b:
             return 0.
 
         # This function finds the interpolation rule for a given index
@@ -351,17 +352,22 @@ class Tabulated1D:
             # Linear-log
             logx = np.log(x1/x0)
             m = (y1 - y0)/logx
-            return y0 + m*(x1*(logx - 1) + x0)
+            return y0*(x1 - x0) + m*(x1*(logx - 1) + x0)
 
         elif p == 4:
             # Log-linear
-            m = np.log(y1/y0)/(x1 - x0)
-            return y0/m*(np.exp(m*(x1 - x0)) - 1)
+            logy = np.log(y1/y0)
+            factor = np.ones_like(logy, dtype=float)
+            np.divide(np.expm1(logy), logy, out=factor, where=logy != 0.)
+            return y0*(x1 - x0)*factor
 
         elif p == 5:
             # Log-log
-            m = np.log(y1/y0)/np.log(x1/x0)
-            return y0/((m + 1)*x0**m)*(x1**(m + 1) - x0**(m + 1))
+            logx = np.log(x1/x0)
+            z = np.log(y1/y0) + logx
+            factor = np.ones_like(z, dtype=float)
+            np.divide(np.expm1(z), z, out=factor, where=z != 0.)
+            return y0*x0*logx*factor
         
         else:
             raise ValueError(f"Unknown interpolation rule {p}")
